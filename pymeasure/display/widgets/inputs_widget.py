@@ -143,6 +143,19 @@ class InputsWidget(QtGui.QWidget):
                     widgetFileName = QtGui.QWidget()
                     widgetFileName.setLayout(filenameGroup)
                     vbox.addWidget(widgetFileName)
+                elif name == "waiting":
+                    waitingGroup = QtGui.QHBoxLayout()
+                    waitingLabel = QtGui.QLabel(self)
+                    waitingBox = QtGui.QSpinBox()
+                    waitingLabel.setText("%s:" % parameters[name].name)
+                    waitingGroup.addWidget(waitingLabel)
+                    waitingGroup.addWidget(waitingBox)
+                    waitingGroup.addWidget(getattr(self, name))
+                    self.labels[name] = waitingLabel
+                    widgetWaiting = QtGui.QWidget()
+                    widgetWaiting.setLayout(waitingGroup)
+                    vbox.addWidget(widgetWaiting)
+
                 else:
                     label = QtGui.QLabel(self)
                     label.setText("%s:" % parameters[name].name)

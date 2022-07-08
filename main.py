@@ -57,6 +57,7 @@ class RandomProcedure(Procedure):
     saving = BooleanParameter("saving", default=True)
     path = Parameter("path", default=r"C:\Users\mazzotti\Desktop\MPI Stuttgart Internship Doc\Python\LabView")
     axis = ListParameter("axis", [1, 2, 3])
+    waiting = IntegerParameter('Waiting time', default=0)
 
     end = start.value + increment.value * steps.value
 
@@ -161,10 +162,10 @@ class MainWindow(ManagedWindow):
 
         super().__init__(
             procedure_class=RandomProcedure,
-            inputs=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis"],
+            inputs=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waiting"],
             inputComand=["start", "steps", "increment", "filename", "path"],
             inputStages=["1", "2"],
-            displays=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis"],
+            displays=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waiting"],
             x_axis="Range",
             y_axis='Voltage'
         )
