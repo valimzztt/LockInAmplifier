@@ -64,15 +64,19 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         
 
     def _layout(self):
-        up = QHBoxLayout()
-        up.addWidget(self.InputConfig())
-        up.addWidget(self.TimeConstants())
+        up = QVBoxLayout()
+        up.addWidget(self.TimeConstant2())
+        up.addWidget(self.Sensitivity())
         up.addWidget(self.FilterSlopes())
+
+
+
         
         down = QHBoxLayout()
         down.addWidget(self.Input())
+        down.addWidget(self.InputConfig())
         down.addWidget(self.inputNotchConfig())
-        down.addWidget(self.Sensitivity())
+
         
         w1 = QWidget()
         w1.setLayout(up)
@@ -96,24 +100,26 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         grounding.addStretch(0)
         
         b1 = QRadioButton ("Float")
+        b1.setChecked(True)
         b2 = QRadioButton ("Grounds")
         grounding.addWidget(QLabel("Input Groundings"))
         grounding.addWidget(b1)
         grounding.addWidget(b2)
-        b1.clicked.connect(lambda: self.setInput(1))
-        b2.clicked.connect(lambda: self.setInput(2))
+        b1.clicked.connect(lambda: self.setInputGroundings(0))
+        b2.clicked.connect(lambda: self.setInputGroundings(1))
         
         coupling = QVBoxLayout()
         coupling.setSpacing(10)
         coupling.addStretch(0)
         
         b3 = QRadioButton ("AC")
+        b3.setChecked(True)
         b4 = QRadioButton ("DC")
         coupling.addWidget(QLabel("Input Couplings"))
         coupling.addWidget(b3)
         coupling.addWidget(b4)
-        b3.clicked.connect(lambda: self.setInput(3))
-        b4.clicked.connect(lambda: self.setInput(4))
+        b3.clicked.connect(lambda: self.setInputCouplings(0))
+        b4.clicked.connect(lambda: self.setInputCouplings(1))
         
         w1 = QWidget()
         w1.setLayout(grounding)
@@ -143,10 +149,10 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         controlsGroup.addWidget(b3)
         controlsGroup.addWidget(b4)
         
-        b1.clicked.connect(lambda: self.setInputConfig(1))
-        b2.clicked.connect(lambda: self.setInputConfig(2))
-        b3.clicked.connect(lambda: self.setInputConfig(3))
-        b4.clicked.connect(lambda: self.setInputConfig(4))
+        b1.clicked.connect(lambda: self.setInputConfig(0))
+        b2.clicked.connect(lambda: self.setInputConfig(1))
+        b3.clicked.connect(lambda: self.setInputConfig(2))
+        b4.clicked.connect(lambda: self.setInputConfig(3))
         
         w = QWidget()
         w.setLayout(controlsGroup)
@@ -161,13 +167,15 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         widget = QWidget()
         widget.setLayout(layout)
         return widget
-    
+
+   # INPUT_CONFIGS = ['A', 'A - B', 'I (1 MOhm)', 'I (100 MOhm)']
     def setInputConfig(self, option):
-        if (option == 1):
-            self.lockin.time_constant = self.lockin.TIME_CONSTANTS[0]
-    
-    
-            
+        self.lockin.input_config = self.lockin.INPUT_CONFIGS[option]
+    def setInputGroundings(self, option):
+        self.lockin.input_grounding = self.lockin.INPUT_GROUNDINGS[option]
+    def setInputCouplings(self, option):
+        self.lockin.input_coupling = self.lockin.INPUT_COUPLINGS[option]
+
     def FilterSlopes(self):
         layout = QVBoxLayout()
         final_layout = QVBoxLayout()
@@ -179,10 +187,10 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         b3 = QRadioButton ("18 dB")
         b4 = QRadioButton ("24 dB")
         
-        b1.clicked.connect(lambda: self.setFilterSlope(1))
-        b2.clicked.connect(lambda: self.setFilterSlope(2))
-        b3.clicked.connect(lambda: self.setFilterSlope(3))
-        b4.clicked.connect(lambda: self.setFilterSlope(4))
+        b1.clicked.connect(lambda: self.setFilterSlope(0))
+        b2.clicked.connect(lambda: self.setFilterSlope(1))
+        b3.clicked.connect(lambda: self.setFilterSlope(2))
+        b4.clicked.connect(lambda: self.setFilterSlope(3))
         
         
         layout.addWidget(b1)
@@ -200,22 +208,14 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         return w_final
     
     def setFilterSlope(self, option):
-        if(option == 1):
-            self.lockin.filter_slope = self.lockin.FILTER_SLOPES[0]
-            
-        if(option == 2):
-            self.lockin.filter_slope = self.lockin.FILTER_SLOPES[1]
-        
-        if(option == 3):
-            self.lockin.filter_slope = self.lockin.FILTER_SLOPES[2]
-        if(option == 4):
-            self.lockin.filter_slope  = self.lockin.FILTER_SLOPES[3]
+        self.lockin.filter_slope = self.lockin.FILTER_SLOPES[option]
+
         
         
 
     
     def Sensitivity(self):
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
         self.cb = QComboBox()
         
         SENSITIVITIES = [
@@ -227,8 +227,10 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         sens = [str(i) for i in SENSITIVITIES]
         self.cb.addItems(sens)
         self.cb.currentIndexChanged.connect(self.setSensitivity)
-		
-        layout.addWidget(QLabel("Sensitivity"))
+
+        self.sensitivity = QLabel("Sensitivity")
+        #self.sensitivity.setStyleSheet("border: 2px solid black;")
+        layout.addWidget(self.sensitivity)
         layout.addWidget(self.cb)
          
         widget  = QWidget()
@@ -240,8 +242,7 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         #set the sensitivty of the lockin amplifier to the given value
         self.lockin.sensitivity = float(self.cb.currentText())
         
-		
-    
+
     def inputNotchConfig(self):
         layout = QVBoxLayout()
         layout.setSpacing(10)
@@ -276,7 +277,31 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
             self.lockin.input_notch_config = self.lockin.INPUT_NOTCH_CONFIGS[2]
         if(option == 4):
             self.lockin.input_notch_config = self.lockin.INPUT_NOTCH_CONFIGS[3]
-            
+
+    def TimeConstant2(self):
+        layout = QHBoxLayout()
+        self.cb = QComboBox()
+
+        SENSITIVITIES = [
+            2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9,
+            500e-9, 1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6,
+            200e-6, 500e-6, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3,
+            50e-3, 100e-3, 200e-3, 500e-3, 1
+        ]
+        time_constants= ["10 µs", "30 µs", "100 µs", "300 µs", "1 ms", "3 ms", "10 ms", "30 ms", "100 ms", "300 ms",
+                          "1 s", "3 s", "10 s", "30 s"]
+        self.cb.addItems(time_constants)
+        self.cb.currentIndexChanged.connect(self.setTime)
+
+        layout.addWidget(QLabel("Time Constant"))
+        layout.addWidget(self.cb)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+        return widget
+    def setTime(self):
+        print("Hello")
+
     def TimeConstants1(self):
         layout = QVBoxLayout()
         self.cb = QComboBox()
@@ -392,7 +417,9 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
             self.unit = 3
         if(option == 4):
             self.unit = 4
-    
+
+
+
             
     
 

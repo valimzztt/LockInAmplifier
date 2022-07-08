@@ -176,7 +176,7 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         self.currPosition2.setText(str(self.controller.y.position))
         
         """Long-running task."""
-        msg = QMessageBox(1, "Information", "Stage has been moved to position " + str(s), QMessageBox.Ok)
+        msg = QMessageBox(1, "Information", "Stage has been moved to position " + str(self.controller.y.position), QMessageBox.Ok)
         msg.exec()
 
     def move(self, axis, position):

@@ -210,6 +210,7 @@ class MainWindow(ManagedWindow):
 
 if __name__ == "__main__":
     app = PyQt5.QtWidgets.QApplication(sys.argv)
+    app.setStyleSheet("QLabel{font-size: 11pt;}")
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
