@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QGr
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 import re
+from decimal import Decimal
 
 import pymeasure
 from pymeasure.instruments.srs import SR830
@@ -65,7 +66,7 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
 
     def _layout(self):
         up = QVBoxLayout()
-        up.addWidget(self.TimeConstant2())
+        up.addWidget(self.TimeConstant())
         up.addWidget(self.Sensitivity())
         up.addWidget(self.FilterSlopes())
 
@@ -238,7 +239,6 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         return widget
     
     def setSensitivity(self):
-        print(self.cb.currentText())
         #set the sensitivty of the lockin amplifier to the given value
         self.lockin.sensitivity = float(self.cb.currentText())
         
@@ -278,145 +278,61 @@ class ParametersWidget(TabWidget, QtGui.QWidget):
         if(option == 4):
             self.lockin.input_notch_config = self.lockin.INPUT_NOTCH_CONFIGS[3]
 
-    def TimeConstant2(self):
+    def TimeConstant(self):
         layout = QHBoxLayout()
-        self.cb = QComboBox()
+        self.tc = QComboBox()
 
-        SENSITIVITIES = [
-            2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9,
-            500e-9, 1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6,
-            200e-6, 500e-6, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3,
-            50e-3, 100e-3, 200e-3, 500e-3, 1
-        ]
         time_constants= ["10 µs", "30 µs", "100 µs", "300 µs", "1 ms", "3 ms", "10 ms", "30 ms", "100 ms", "300 ms",
-                          "1 s", "3 s", "10 s", "30 s"]
-        self.cb.addItems(time_constants)
-        self.cb.currentIndexChanged.connect(self.setTime)
+                          "1 s", "3 s", "10 s", "30 s", "300 s", "1000 s", "3000 s", "10 000 s", "30 000 s"]
+
+        self.tc.addItems(time_constants)
+        self.tc.currentIndexChanged.connect(self.setTime)
 
         layout.addWidget(QLabel("Time Constant"))
-        layout.addWidget(self.cb)
+        layout.addWidget(self.tc)
 
         widget = QWidget()
         widget.setLayout(layout)
         return widget
-    def setTime(self):
-        print("Hello")
 
-    def TimeConstants1(self):
-        layout = QVBoxLayout()
-        self.cb = QComboBox()
-        TIME_CONSTANTS1 = [
+
+    def setTime(self):
+        time_constant = self.characters(self.tc.currentText())
+        print(time_constant)
+        TIME_CONSTANTS = [
             10e-6, 30e-6, 100e-6, 300e-6, 1e-3, 3e-3, 10e-3,
             30e-3, 100e-3, 300e-3, 1, 3, 10, 30, 100, 300, 1e3,
             3e3, 10e3, 30e3
         ]
-        TIME_CONSTANTS = ["10 µs", "30 µs", "100 µs", "300 µs", "1 ms", "3 ms", "10 ms", "30 ms", "100 ms", "300 ms", "1 s", "3 s", "10 s", "30 s"]
-        sens = [re.findall('[0-9]+', str(i)) for i in TIME_CONSTANTS]
-        print(sens)
-        #sens = [str(i) for i in SENSITIVITIES]
-        self.cb.addItems(sens)
-        self.cb.currentIndexChanged.connect(self.setSensitivity)
-		
-        layout.addWidget(QLabel("Sensitivity"))
-        layout.setSpacing(0)
-        layout.addWidget(self.cb)
-         
-        widget  = QWidget()
-        widget.setLayout(layout)
-        return widget
-    
-    def TimeConstants(self):
-        layout = QHBoxLayout()
-        
-        TIME_CONSTANTS = [
-        2e-9, 5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9,
-        500e-9, 1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6,
-        200e-6, 500e-6, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3,
-        50e-3, 100e-3, 200e-3, 500e-3, 1
-        ]
-        
-        
-        b1 = QRadioButton ("3")
-        b2 = QRadioButton ("1")
-        b3 = QRadioButton ("x100")
-        b4 = QRadioButton ("x10")
-        b5 = QRadioButton ("x1")
-        b6 = QRadioButton ("ks")
-        b7 = QRadioButton ("s")
-        b8 = QRadioButton ("m")
-        b9 = QRadioButton ("µm")
-        
-        controlsGroup = QVBoxLayout()
-        controlsGroup.setSpacing(10)
-        controlsGroup.addStretch(0)
-        controlsGroup.addWidget(b1)
-        controlsGroup.addWidget(b2)
-        
-        
-        controlsGroup2 = QVBoxLayout()
-        controlsGroup2.setSpacing(10)
-        controlsGroup2.addStretch(0)
-        
-        controlsGroup2.addWidget(b3)
-        controlsGroup2.addWidget(b4)
-        controlsGroup2.addWidget(b5)
-        
-        controlsGroup3 = QVBoxLayout()
-        controlsGroup3.setSpacing(10)
-        controlsGroup3.addStretch(0)
-        
-        controlsGroup3.addWidget(b6)
-        controlsGroup3.addWidget(b7)
-        controlsGroup3.addWidget(b8)
-        controlsGroup3.addWidget(b9)
-        
-        
-        b1.clicked.connect(lambda: self.setTimeConstantMag(1))
-        b2.clicked.connect(lambda: self.setTimeConstantMag(2))
-        b3.clicked.connect(lambda: self.setTimeConstantMag2(1))
-        b4.clicked.connect(lambda: self.setTimeConstantMag2(2))
-        b5.clicked.connect(lambda: self.setTimeConstantMag2(3))
-        b6.clicked.connect(lambda: self.setTimeConstantUnit(1))
-        b7.clicked.connect(lambda: self.setTimeConstantUnit(2))
-        b8.clicked.connect(lambda: self.setTimeConstantUnit(3))
-        b9.clicked.connect(lambda: self.setTimeConstantUnit(4))
+        if(str(time_constant) == "1e-05"):
+            self.lockin.time_constant = TIME_CONSTANTS[0]
+        elif (time_constant == 3e-05):
+            self.lockin.time_constant = TIME_CONSTANTS[1]
 
-        w = QWidget()
-        w2 = QWidget()
-        w3 = QWidget()
-    
-        w.setLayout(controlsGroup)
-        w2.setLayout(controlsGroup2)
-        w3.setLayout(controlsGroup3)
-        layout.addWidget(w)
-        layout.addWidget(w2)
-        layout.addWidget(w3)
-    
-    
-        #Final Widget brining all together
-        widget = QWidget()
-        widget.setLayout(layout)
-        return widget
-    
-    def setTimeConstantMag(self, option):
-        if(option == 1):
-            self.mag = 1
-        if(option == 2):
-            self.mag = 2
-    def setTimeConstantMag2(self, option):
-        if(option == 1):
-            self.mag2 = 1
-        if(option == 2):
-            self.mag2 = 2
-    def setTimeConstantUnit(self, option):
-        if(option == 1):
-            self.unit = 1
-        if(option == 2):
-            self.unit = 2
-        if(option == 3):
-            self.unit = 3
-        if(option == 4):
-            self.unit = 4
+        else:
+
+            self.lockin.time_constant = time_constant
+
+
+    def characters(self, string):
+        mag = int(re.sub(r'[^0-9]', '', str(string)))
+        decimal = re.sub(r'[^a-zA-Z|µ]', '', str(string))
+        print(decimal)
+        num = 0
+        scientific = 0
+        if (decimal == "s"):
+            scientific = int(mag)
+        if (decimal == "µs"):
+            scientific = float(str(mag) + "e-6")
+        if (decimal == "ms"):
+            num = float(mag * 0.001)
+            scientific = float("{:.2e}".format(Decimal(num)))
+
+        return scientific
+
+
+
+
 
 
 
