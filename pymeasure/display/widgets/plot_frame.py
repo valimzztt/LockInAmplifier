@@ -28,6 +28,7 @@ import re
 import pyqtgraph as pg
 
 from ..curves import ResultsCurve, Crosshairs
+from .averagecurve import ResultsImageAverage, ResultsCurveAverage, BufferCurveAverage
 from ..Qt import QtCore, QtGui
 from ...experiment import Procedure
 
@@ -65,6 +66,7 @@ class PlotFrame(QtGui.QFrame):
         vbox = QtGui.QVBoxLayout(self)
 
         self.plot_widget = pg.PlotWidget(self, background='#ffffff')
+
         self.coordinates = QtGui.QLabel(self)
         self.coordinates.setMinimumSize(QtCore.QSize(0, 20))
         self.coordinates.setStyleSheet("background: #fff")
@@ -77,6 +79,8 @@ class PlotFrame(QtGui.QFrame):
         self.setLayout(vbox)
 
         self.plot = self.plot_widget.getPlotItem()
+
+
 
         self.crosshairs = Crosshairs(self.plot,
                                      pen=pg.mkPen(color='#AAAAAA', style=QtCore.Qt.DashLine))
@@ -119,12 +123,22 @@ class PlotFrame(QtGui.QFrame):
     def change_x_axis(self, axis):
         for item in self.plot.items:
             if isinstance(item, self.ResultsClass):
+                print(item.results)
+                print("Helllo")
                 item.x = axis
                 item.update_data()
         label, units = self.parse_axis(axis)
         self.plot.setLabel('bottom', label, units=units, **self.LABEL_STYLE)
         self.x_axis = axis
         self.x_axis_changed.emit(axis)
+
+    def add_average(self, average_axis):
+        self.item = ResultsCurveAverage(self.plot.items[0], average_axis, average_axis)
+
+        self.item.x = average_axis
+        self.plot_widget.addItem(self.item)
+
+
 
     def change_y_axis(self, axis):
         for item in self.plot.items:

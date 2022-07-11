@@ -41,3 +41,4 @@ from .filename_widget import FilenameWidget
 from .input_stages_widget import InputStagesWidget
 from .stage_controller_widget import StageControllerWidget
 from .average_results_dialog import AverageResultsDialog
+from .averagecurve import ResultsImageAverage, ResultsCurveAverage, BufferCurveAverage

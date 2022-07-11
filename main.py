@@ -50,14 +50,15 @@ class RandomProcedure(Procedure):
     iterations = IntegerParameter('Loop Iterations', default=5)
     delay = FloatParameter('Delay Time', units='s', default=0.2)
     start = IntegerParameter("start", units="m", default=0)
-    steps = IntegerParameter("steps", default=5)
+    steps = IntegerParameter("steps", default=20)
     increment = FloatParameter("increment", default=1)
 
     filename = Parameter("filename", default="default")
     saving = BooleanParameter("saving", default=True)
     path = Parameter("path", default=r"C:\Users\mazzotti\Desktop\MPI Stuttgart Internship Doc\Python\LabView")
     axis = ListParameter("axis", [1, 2, 3])
-    waiting = IntegerParameter('Waiting time', default=0)
+    waitingTime = IntegerParameter('Waiting time', default=0)
+    waiting = BooleanParameter("Waiting", default= False)
 
     end = start.value + increment.value * steps.value
 
@@ -85,12 +86,19 @@ class RandomProcedure(Procedure):
         self.max_current = self.end
         self.min_current = self.start
 
+        self.scale = np.linspace(0, 50, self.data_points)
+
+        i = 0
+
         if (self.current_iter == 0):
+            self.iter_voltages = []
             # we move the stage on the same thread as the lockin amplifier (trial)
             with open(self.data_filename, 'w', newline='') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 dictwriter_object = DictWriter(csvfile, fieldnames=self.DATA_COLUMNS)
                 dictwriter_object.writeheader()
+
+
                 for point in self.range_x:
                     self.stage.define_position(point)
                     self.lockin.reset_buffer()
@@ -99,7 +107,9 @@ class RandomProcedure(Procedure):
                     data_measurement = {
                         'Voltage': self.lockin.x, "Stage_Position": self.stage.position, "Range": point, "Average": 0
                     }
+                    data_measurement["Average"] = data_measurement.get("Voltage")
                     self.emit('results', data_measurement)
+
 
                     sleep(0.01)
 
@@ -110,6 +120,8 @@ class RandomProcedure(Procedure):
                         log.info("User aborted the procedure")
                         # TODO: REMEMBER TO SAVE THE DATA TO FILE
                         break
+                    i = i +1
+
         else:
             df = pd.read_csv(self.data_filename)
             row = 0
@@ -118,11 +130,11 @@ class RandomProcedure(Procedure):
                 self.lockin.reset_buffer()
                 sleep(0.1)
                 self.lockin.start_buffer()
-                print(df.at[row, "Voltage"])
                 data_measurement = {
-                    'Voltage': self.lockin.x, "Stage_Position": self.stage.position, "Range": point,
-                    "Average": df.at[row, "Voltage"]
+                    'Voltage': self.lockin.x, "Stage_Position": self.stage.position, "Range": point,"Average": 0
+                    #"Average": df.at[row, "Voltage"]
                 }
+
                 self.emit('results', data_measurement)
 
                 sleep(0.01)
@@ -162,10 +174,10 @@ class MainWindow(ManagedWindow):
 
         super().__init__(
             procedure_class=RandomProcedure,
-            inputs=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waiting"],
+            inputs=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waitingTime", "waiting"],
             inputComand=["start", "steps", "increment", "filename", "path"],
             inputStages=["1", "2"],
-            displays=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waiting"],
+            displays=['iterations', 'delay', "start", "steps", "increment", "filename", "path", "axis", "waitingTime","waiting"],
             x_axis="Range",
             y_axis='Voltage'
         )
@@ -195,8 +207,9 @@ class MainWindow(ManagedWindow):
                 path = procedure.get_parameter("path")
                 filename_loc = procedure.get_parameter("filename")
                 self.data_filename = path + "/" + filename_loc + ".csv"
-                results = Results(procedure, (filename))
-            # results = Results(procedure,(filename, self.data_filename))
+                #results = Results(procedure, (filename))
+                temporaryfile = path + "/" + "LET´SIFAVERAGE.csv"
+                results = Results(procedure,(filename, temporaryfile))
 
             else:
                 results = Results(procedure, filename)

@@ -241,7 +241,7 @@ class Manager(QtCore.QObject):
             if self.experiments.has_next():
                 log.debug("Manager is initiating the next experiment")
                 experiment = self.experiments.next()
-                
+
                 self._running_experiment = experiment
 
                 self._worker = Worker(experiment.results, port=self.port, log_level=self.log_level)
@@ -258,9 +258,41 @@ class Manager(QtCore.QObject):
 
                 self._monitor.start()
                 self._worker.start()
-                
-        
-                
+
+    def continuing(self):
+        """ Initiates the start of the next experiment in the queue as long
+        as no other experiments are currently running and there is a procedure
+        in the queue.
+        """
+        if self.is_running():
+            raise Exception("Another procedure is already running")
+        else:
+            if self.experiments.has_next():
+                log.debug("Manager is initiating the next experiment")
+                # experiment = self.experiments.next()
+                if self._running_experiment != None:
+
+                    experiment = self._running_experiment
+                else:
+                    experiment = self.experiments.next()
+                print(experiment.results)
+                self._running_experiment = experiment
+
+                self._worker = Worker(experiment.results, port=self.port, log_level=self.log_level)
+
+                self._monitor = Monitor(self._worker.monitor_queue)
+                self._monitor.worker_running.connect(self._running)
+                self._monitor.worker_failed.connect(self._failed)
+                self._monitor.worker_abort_returned.connect(self._abort_returned)
+                self._monitor.worker_paused_returned.connect(self._paused_returned)
+                self._monitor.worker_finished.connect(self._finish)
+                self._monitor.progress.connect(self._update_progress)
+                self._monitor.status.connect(self._update_status)
+                self._monitor.log.connect(self._update_log)
+
+                self._monitor.start()
+                self._worker.start()
+
     def get_average_data(self):
         self.average_data = self._worker.get_average_data()
         return self.average_data
@@ -341,9 +373,9 @@ class Manager(QtCore.QObject):
             raise Exception("Attempting to pause when no experiment "
                             "is running")
         else:
-            self._start_on_add = True
-            self._is_continuous = True
+            self._start_on_add = False
+            self._is_continuous = False
 
-            self._worker.stop()
+            self._worker.pause()
 
             self.paused.emit(self._running_experiment)

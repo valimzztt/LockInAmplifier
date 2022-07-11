@@ -30,12 +30,7 @@ from .tab_widget import TabWidget
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
-from time import sleep
-from pymeasure.instruments.newport.esp300 import ESP300
-import numpy as np
-import pandas as pd
-from pymeasure.instruments.newport.esp300 import Axis
-import pyvisa
+
 
 
 
@@ -50,6 +45,7 @@ class Worker(QObject):
         super().__init__()
         self.axis = axis
         self.axis.define_position(position)
+
     
 
     def run(self):
@@ -106,8 +102,18 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         hbox1 = QHBoxLayout(self)
         hbox1.setSpacing(10)
         hbox1.addWidget(QLabel("Current Position of Stage"))
+        self.enabled1 = QPushButton("Enable motor", self)
+        self.enabled1.clicked.connect(lambda:(self.enableMotor(self.controller.x, self.enabled1)))
+        if (self.controller.x.enabled):
+            self.enabled1.setText("Disable motor")
+            self.currPosition1.setText(str(self.controller.x.position))
+        else:
+            self.enabled1.setText("Enable motor")
+            self.enabled1.setEnabled(False)
+            self.currPosition1.setText("NO STAGE")
         self.currPosition1.setText(str(self.controller.y.position))
         hbox1.addWidget(self.currPosition1)
+        hbox1.addWidget(self.enabled1)
         
         hboxWidget = QWidget()
         hboxWidget.setLayout(hbox1)
@@ -132,7 +138,19 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         hbox2.setSpacing(10)
         hbox2.addWidget(QLabel("Current Position of Stage"))
         hbox2.addWidget(self.currPosition2)
-        self.currPosition2.setText(str(self.controller.y.position))
+        self.enabled2 = QPushButton("Enable motor", self)
+        self.enabled2.clicked.connect(lambda: self.enableMotor(self.controller.y, self.enabled2))
+        hbox2.addWidget(self.enabled2)
+
+        if(self.controller.y.enabled):
+            self.enabled2.setText("Disable motor")
+            self.currPosition2.setText(str(self.controller.y.position))
+        else:
+            self.enabled2.setText("Enable motor")
+            self.enabled2.setEnabled(False)
+            self.currPosition2.setText("NO STAGE")
+
+
         hboxWidget2 = QWidget()
         hboxWidget2.setLayout(hbox2)
         self.tab2.layout.addWidget(hboxWidget2)
@@ -157,7 +175,18 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         hbox3.setSpacing(10)
         hbox3.addWidget(QLabel("Current Position of Stage"))
         hbox3.addWidget(self.currPosition3)
-        self.currPosition3.setText(str(self.controller.phi.position))
+
+        self.enabled3 = QPushButton(self)
+        hbox3.addWidget(self.enabled3)
+        self.enabled3.clicked.connect(lambda: self.enableMotor(self.controller.phi, self.enabled3))
+        if (self.controller.phi.enabled):
+            self.enabled3.setText("Disable motor")
+            self.currPosition3.setText(str(self.controller.phi.position))
+        else:
+            self.enabled3.setText("Enable motor")
+            self.enabled3.setEnabled(False)
+            self.currPosition3.setText("NO STAGE")
+
         hboxWidget3 = QWidget()
         hboxWidget3.setLayout(hbox3)
         self.tab3.layout.addWidget(hboxWidget3)
@@ -169,7 +198,21 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
-        
+
+    def enableMotor(self, axis, button):
+        self.axis = axis
+        self.enabled = button
+        if axis != None:
+            if (self.enabled.text() == "Enable motor"):
+                print("We are enabling")
+                self.controller.y.enable()
+                self.enabled.setText("Disable motor")
+            else:
+                print("we are disabling")
+                self.axis.disable()
+                self.enabled.setText("Enable motor")
+        else:
+            return
 
     def reportProgress(self, s):
         log.info("%d%% done" % s)

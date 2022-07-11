@@ -58,6 +58,10 @@ class StoppableThread(Thread):
         self._should_stop = InterruptableEvent()
         self._should_stop.clear()
 
+        self.__flag = Event()  # The flag used to pause the thread
+        self.__running = Event()  # Used to stop the thread identification
+        self.__running.set()  # Set running to True
+
     def join(self, timeout=0):
         """ Joins the current thread and forces it to stop after
         the timeout if necessary
@@ -74,6 +78,13 @@ class StoppableThread(Thread):
 
     def should_stop(self):
         return self._should_stop.is_set()
+
+    def pause(self):
+        self.__flag.set()  # Set to True
+        #self.__flag.clear()  # Set to False to block the thread
+
+    def resume(self):
+        self.__flag.clear()  # Set to True, let the thread stop blocking
 
     def __repr__(self):
         return "<{}(should_stop={})>".format(

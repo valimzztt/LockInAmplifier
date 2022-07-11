@@ -119,10 +119,14 @@ class PlotWidget(TabWidget, QtGui.QWidget):
     def update_x_column(self, index):
         axis = self.columns_x.itemText(index)
         self.plot_frame.change_x_axis(axis)
+        self.plot_frame.add_average("average")
 
     def update_y_column(self, index):
         axis = self.columns_y.itemText(index)
         self.plot_frame.change_y_axis(axis)
+
+    def show_average(self):
+        self.plot_frame.change_x_axis("average")
 
     def load(self, curve):
         curve.x = self.columns_x.currentText()

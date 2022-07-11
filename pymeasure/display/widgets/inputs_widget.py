@@ -143,14 +143,24 @@ class InputsWidget(QtGui.QWidget):
                     widgetFileName = QtGui.QWidget()
                     widgetFileName.setLayout(filenameGroup)
                     vbox.addWidget(widgetFileName)
-                elif name == "waiting":
+                elif name == "waitingTime":
+                    self.waitingCheckBox = QtGui.QCheckBox(self)
+                    if (self._procedure.get_parameter("waiting") == False):
+                        self.waitingCheckBox.setChecked(False)
+                    else:
+                        self.waitingCheckBox.setChecked(True)
+                    self.waitingCheckBox.clicked.connect(self.waitingOptionSetter)
                     waitingGroup = QtGui.QHBoxLayout()
                     waitingLabel = QtGui.QLabel(self)
-                    waitingBox = QtGui.QSpinBox()
+                    self.waitingBox = QtGui.QSpinBox()
+
+                    self.waitingBox.setValue(0)
+
                     waitingLabel.setText("%s:" % parameters[name].name)
                     waitingGroup.addWidget(waitingLabel)
-                    waitingGroup.addWidget(waitingBox)
-                    waitingGroup.addWidget(getattr(self, name))
+                    self.waitingBox.valueChanged.connect(self.setWaitingTime)
+                    waitingGroup.addWidget(self.waitingBox)
+                    waitingGroup.addWidget(self.waitingCheckBox)
                     self.labels[name] = waitingLabel
                     widgetWaiting = QtGui.QWidget()
                     widgetWaiting.setLayout(waitingGroup)
@@ -166,6 +176,16 @@ class InputsWidget(QtGui.QWidget):
             
 
         self.setLayout(vbox)
+    def waitingOptionSetter(self):
+        if(self.waitingCheckBox.checkState() == 2):
+            self._procedure.set_parameter("waiting", True)
+            self.waitingBox.setEnabled(True)
+        elif(self.waitingCheckBox.checkState() == 0):
+            self._procedure.set_parameter("waiting", False)
+            self.waitingBox.setEnabled(False)
+        print(self._procedure.get_parameter("waiting"))
+    def setWaitingTime(self):
+        self._procedure.set_parameter("waitingTime", int(self.waitingBox.text()))
         
     def show_info_messagebox():
         msg = QMessageBox()

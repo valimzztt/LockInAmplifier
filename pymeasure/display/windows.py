@@ -439,8 +439,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
         
         
         self.close()
-       # Restart kernel with this command
-        #os._exit(00)
+
     
     def checkPositionParameter(self):
         self.stage = self.controller.x #default value
