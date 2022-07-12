@@ -109,7 +109,6 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
             self.currPosition1.setText(str(self.controller.x.position))
         else:
             self.enabled1.setText("Enable motor")
-            self.enabled1.setEnabled(False)
             self.currPosition1.setText("NO STAGE")
         self.currPosition1.setText(str(self.controller.y.position))
         hbox1.addWidget(self.currPosition1)
@@ -147,7 +146,7 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
             self.currPosition2.setText(str(self.controller.y.position))
         else:
             self.enabled2.setText("Enable motor")
-            self.enabled2.setEnabled(False)
+            #self.enabled2.setEnabled(False)
             self.currPosition2.setText("NO STAGE")
 
 
@@ -184,7 +183,7 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
             self.currPosition3.setText(str(self.controller.phi.position))
         else:
             self.enabled3.setText("Enable motor")
-            self.enabled3.setEnabled(False)
+            #self.enabled3.setEnabled(False)
             self.currPosition3.setText("NO STAGE")
 
         hboxWidget3 = QWidget()

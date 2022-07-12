@@ -102,11 +102,10 @@ class Experiment:
     :param _data_timeout: Time limit for how long live plotting should wait for datapoints.
     """
 
-    def __init__(self, title, procedure,current_iter, analyse=(lambda x: x)):
+    def __init__(self, title, procedure, analyse=(lambda x: x)):
         self.title = title
         self.procedure = procedure
         self.measlist = []
-        self.currrent_iter = current_iter
         self.port = 5888
         self.plots = []
         self.figs = []

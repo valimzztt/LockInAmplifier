@@ -81,7 +81,6 @@ class StoppableThread(Thread):
 
     def pause(self):
         self.__flag.set()  # Set to True
-        #self.__flag.clear()  # Set to False to block the thread
 
     def resume(self):
         self.__flag.clear()  # Set to True, let the thread stop blocking

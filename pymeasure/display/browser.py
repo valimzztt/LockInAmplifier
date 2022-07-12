@@ -55,7 +55,7 @@ class BrowserItem(QtGui.QTreeWidgetItem):
     def setStatus(self, status):
         status_label = {
             Procedure.QUEUED: 'Queued', Procedure.RUNNING: 'Running',
-            Procedure.FAILED: 'Failed', Procedure.ABORTED: 'Aborted',
+            Procedure.FAILED: 'Failed', Procedure.ABORTED: 'Aborted', Procedure.PAUSED: 'Paused',
             Procedure.FINISHED: 'Finished'}
         self.setText(3, status_label[status])
 

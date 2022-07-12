@@ -47,7 +47,7 @@ class RandomProcedure(Procedure):
     controller = ESP300("GPIB::1")
 
     # parameters of the procedure
-    iterations = IntegerParameter('Loop Iterations', default=5)
+    iterations = IntegerParameter('Loop Iterations', default=3)
     delay = FloatParameter('Delay Time', units='s', default=0.2)
     start = IntegerParameter("start", units="m", default=0)
     steps = IntegerParameter("steps", default=20)
@@ -63,6 +63,9 @@ class RandomProcedure(Procedure):
     end = start.value + increment.value * steps.value
 
     DATA_COLUMNS = ["Voltage", "Stage_Position", "Range", "Average"]
+    abortedProcedure = IntegerParameter('Aborted procedure', default=0)
+
+#in order to make sure that only procedure that are completely executed are being saved
 
     def execute(self):
         # we need to monitor that the position of tha stage matches exactly the range we have set and we do it without any worker so on the MainThread
@@ -80,25 +83,17 @@ class RandomProcedure(Procedure):
 
         self.end = self.start + self.increment * self.steps
         self.range_x = np.linspace(self.start, self.end, self.steps + 1)
-
         self.data_points = self.steps + 1
         self.averages = 50
         self.max_current = self.end
         self.min_current = self.start
-
         self.scale = np.linspace(0, 50, self.data_points)
-
         i = 0
-
+        print("current iter inside procedure", self.current_iter)
         if (self.current_iter == 0):
-            self.iter_voltages = []
-            # we move the stage on the same thread as the lockin amplifier (trial)
             with open(self.data_filename, 'w', newline='') as csvfile:
-                csv_writer = csv.writer(csvfile)
                 dictwriter_object = DictWriter(csvfile, fieldnames=self.DATA_COLUMNS)
                 dictwriter_object.writeheader()
-
-
                 for point in self.range_x:
                     self.stage.define_position(point)
                     self.lockin.reset_buffer()
@@ -110,10 +105,7 @@ class RandomProcedure(Procedure):
                     data_measurement["Average"] = data_measurement.get("Voltage")
                     self.emit('results', data_measurement)
 
-
                     sleep(0.01)
-
-                    # Pass the dictionary as an argument to the Writerow()
                     dictwriter_object.writerow(data_measurement)
 
                     if self.should_stop():
@@ -125,6 +117,7 @@ class RandomProcedure(Procedure):
         else:
             df = pd.read_csv(self.data_filename)
             row = 0
+            sum_voltages = []
             for point in self.range_x:
                 self.stage.define_position(point)
                 self.lockin.reset_buffer()
@@ -132,25 +125,30 @@ class RandomProcedure(Procedure):
                 self.lockin.start_buffer()
                 data_measurement = {
                     'Voltage': self.lockin.x, "Stage_Position": self.stage.position, "Range": point,"Average": 0
-                    #"Average": df.at[row, "Voltage"]
                 }
-
+                print("average is ", df.at[row, "Average"])
+                print("current iter", self.current_iter)
+                sum_voltage = (self.current_iter * df.at[row, "Average"] + data_measurement.get("Voltage")) / (
+                        self.current_iter + 1)
+                data_measurement["Average"] = sum_voltage
                 self.emit('results', data_measurement)
-
                 sleep(0.01)
 
-                # Pass the dictionary as an argument to the Writerow()
-                sum_voltage = (self.current_iter * df.at[row, "Average"] + data_measurement.get("Voltage")) / (
-                            self.current_iter + 1)
+                sum_voltages.append(sum_voltage)
 
-                df.at[row, "Average"] = sum_voltage
-                df.to_csv(self.data_filename, index=False)
                 row = row + 1
 
                 if self.should_stop():
                     log.info("User aborted the procedure")
-                    # TODO: REMEMBER TO SAVE THE DATA TO FILE
                     break
+            if(len(sum_voltages) == len(self.range_x)):
+                i = 0
+                for sum_voltage in sum_voltages:
+                    df.at[i, "Average"] = sum_voltage
+                    df.to_csv(self.data_filename, index=False)
+                    i = i +1
+
+
 
     def shutdown(self):
         log.info("Finished measuring Random Procedure")
@@ -160,6 +158,10 @@ class RandomProcedure(Procedure):
 
     def get_end(self):
         return self.end
+
+
+
+
 
 
 import csv
@@ -183,40 +185,38 @@ class MainWindow(ManagedWindow):
         )
 
         self.setWindowTitle('Lock-in Amplifier')
+        self.manager.abort_returned.connect(self.changeIteration)
+        self.iterations = None
+        self.should_run = True
+        self.curr = 0
+
+    def changeIteration(self):
+        self.curr = self.curr - 1
+
 
     def queue(self):
-        # filename = tempfile.mkdtemp()
-        # this is the deprecated version (not secure) and should actually be replaced with the one above
-
         procedure1 = self.make_procedure()
-        iterations = procedure1.get_parameter("iterations")
+        self.iterations = procedure1.get_parameter("iterations")
 
-        range_x = np.arange(procedure1.get_parameter("start"), procedure1.get_parameter("end"),
-                            procedure1.get_parameter("steps")).tolist()
+        while (self.curr < self.iterations):
+            if (self.should_run):
+                filename = tempfile.mktemp()
+                procedure = self.make_procedure()
 
-        avg_voltage = np.zeros(len(range_x))
+                procedure.set_current_iteration(self.curr)
+                if (procedure.saving):
+                    path = procedure.get_parameter("path")
+                    filename_loc = procedure.get_parameter("filename")
+                    self.data_filename = path + "/" + filename_loc + ".csv"
+                    # results = Results(procedure, (filename))
+                    temporaryfile = path + "/" + "averaging.csv"
+                    results = Results(procedure, (filename, temporaryfile))
 
-        average = dict(zip(range_x, avg_voltage))
-        previous_experiment = None
-        for curr in range(iterations):
-            filename = tempfile.mktemp()
-            procedure = self.make_procedure()
-            procedure.set_current_iteration(curr)
-
-            if (procedure.saving):
-                path = procedure.get_parameter("path")
-                filename_loc = procedure.get_parameter("filename")
-                self.data_filename = path + "/" + filename_loc + ".csv"
-                #results = Results(procedure, (filename))
-                temporaryfile = path + "/" + "LET´SIFAVERAGE.csv"
-                results = Results(procedure,(filename, temporaryfile))
-
-            else:
-                results = Results(procedure, filename)
-
-            experiment = self.new_experiment(results, curr)
-
-            self.manager.queue(experiment)
+                else:
+                    results = Results(procedure, filename)
+                experiment = self.new_experiment(results, self.curr)
+                self.manager.queue(experiment)
+                self.curr = self.curr + 1
 
     def get_start(self):
         return self.start

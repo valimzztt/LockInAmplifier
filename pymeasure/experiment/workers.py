@@ -131,6 +131,10 @@ class Worker(StoppableThread):
         log.exception("User stopped Worker execution prematurely")
         self.update_status(Procedure.ABORTED)
 
+    def handle_paused(self):
+        log.exception("User paused Worker execution")
+        self.update_status(Procedure.PAUSED)
+
     def handle_error(self):
         log.exception("Worker caught an error on %r", self.procedure)
         traceback_str = traceback.format_exc()
@@ -143,7 +147,6 @@ class Worker(StoppableThread):
 
     def shutdown(self):
         self.procedure.shutdown()
-
         if self.should_stop() and self.procedure.status == Procedure.RUNNING:
             self.update_status(Procedure.ABORTED)
         elif self.procedure.status == Procedure.RUNNING:
@@ -152,6 +155,23 @@ class Worker(StoppableThread):
 
         self.recorder.stop()
         self.monitor_queue.put(None)
+        if self.context is not None:
+            # Cleanly close down ZMQ context and associated socket
+            # For some reason, we need to close the socket before the
+            # context, otherwise context termination hangs.
+            self.publisher.close()
+            self.context.term()
+
+    #version taken from shutdown
+    def interrupt(self):
+        #only writes on the log module
+        self.procedure.shutdown()
+        if self.should_stop() and self.procedure.status == Procedure.RUNNING:
+            self.update_status(Procedure.PAUSED)
+        elif self.procedure.status == Procedure.RUNNING:
+            self.update_status(Procedure.FINISHED)
+            self.emit('progress', 100.)
+
         if self.context is not None:
             # Cleanly close down ZMQ context and associated socket
             # For some reason, we need to close the socket before the
@@ -190,10 +210,7 @@ class Worker(StoppableThread):
             self.shutdown()
             self.stop()
             
- 
-    def get_average_data(self):
-        log.info(self.average_data)
-        return self.average_data
+
 
     def __repr__(self):
         return "<{}(port={},procedure={},should_stop={})>".format(

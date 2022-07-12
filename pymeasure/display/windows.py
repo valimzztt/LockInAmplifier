@@ -287,7 +287,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
         
         self.pause_button = QtGui.QPushButton('Pause', self)
         self.pause_button.setEnabled(False)
-        self.pause_button.clicked.connect(self.pause)
+        self.pause_button.clicked.connect(self.interrupt)
 
         self.browser_widget = BrowserWidget(
             self.procedure_class,
@@ -691,6 +691,9 @@ class ManagedWindowBase(QtGui.QMainWindow):
         raise NotImplementedError(
             "Abstract method ManagedWindow.queue not implemented")
 
+
+
+
     def abort(self):
         self.abort_button.setEnabled(False)
         self.abort_button.setText("Resume")
@@ -704,7 +707,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
             self.abort_button.clicked.disconnect()
             self.abort_button.clicked.connect(self.abort)
     
-    def pause(self):
+    def interrupt(self):
         self.pause_button.setEnabled(False)
         self.pause_button.setText("Continue")
         self.pause_button.clicked.disconnect()
@@ -716,12 +719,12 @@ class ManagedWindowBase(QtGui.QMainWindow):
             log.error('Failed to pause the experiment', exc_info=True)
             self.pause_button.setText("Pause")
             self.pause_button.clicked.disconnect()
-            self.pause_button.clicked.connect(self.pause)
+            self.pause_button.clicked.connect(self.interrupt)
         
     def continuing(self):
-        self.pause_button.setText("Pause")
+        self.pause_button.setText("Interrupt procedure")
         self.pause_button.clicked.disconnect()
-        self.pause_button.clicked.connect(self.pause)
+        self.pause_button.clicked.connect(self.interrupt)
         if self.manager.experiments.has_next():
             self.manager.resume()
         else:
@@ -746,20 +749,23 @@ class ManagedWindowBase(QtGui.QMainWindow):
     def running(self, experiment):
         self.browser_widget.clear_button.setEnabled(False)
 
+
+
     def abort_returned(self, experiment):
         if self.manager.experiments.has_next():
             self.abort_button.setText("Resume")
             self.abort_button.setEnabled(True)
         else:
             self.browser_widget.clear_button.setEnabled(True)
+
+
     
     def paused_returned(self, experiment):
         self.paused_button.setText("Continue")
         self.paused_button.setEnabled(True)
         
     def finished(self, experiment):
-        #we need to remove the experiment from the queue once it is done
-    
+
         self.manager.remove_graph(experiment)
        # self.manager.plot_average(experiment)
         if not self.manager.experiments.has_next():
