@@ -64,25 +64,30 @@ import os
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
+class MyMessageBox(QtGui.QMessageBox):
+    def __init__(self):
+        QtGui.QMessageBox.__init__(self)
+        self.setSizeGripEnabled(True)
 
-# Step 1: Create a worker class
-class WorkerPositionError(QObject):
-    finished = pyqtSignal()
-    progress = pyqtSignal(int)
+    def event(self, e):
+        result = QtGui.QMessageBox.event(self, e)
 
-    def __init__(self, procedure, controller):
-        super().__init__()
-        self.procedure = procedure
-        self.controller = controller
-        
-    
-    def run(self):
-        self.progress.emit(0)
-        sleep(10)
-        self.finished.emit()
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+        self.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
 
+        textEdit = self.findChild(QtGui.QTextEdit)
+        if textEdit != None :
+            textEdit.setMinimumHeight(0)
+            textEdit.setMaximumHeight(16777215)
+            textEdit.setMinimumWidth(0)
+            textEdit.setMaximumWidth(16777215)
+            textEdit.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
 
-       
+        return result
+
 
 class PlotterWindow(QtGui.QMainWindow):
     """
@@ -285,7 +290,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
         self.abort_button.setEnabled(False)
         self.abort_button.clicked.connect(self.abort)
         
-        self.pause_button = QtGui.QPushButton('Pause', self)
+        self.pause_button = QtGui.QPushButton('Interrupt experiment', self)
         self.pause_button.setEnabled(False)
         self.pause_button.clicked.connect(self.interrupt)
 
@@ -440,48 +445,32 @@ class ManagedWindowBase(QtGui.QMainWindow):
         
         self.close()
 
-    
-    def checkPositionParameter(self):
-        self.stage = self.controller.x #default value
-        if(self.procedure.axis == 1):
-            self.stage = self.controller.x
-        elif(self.procedure.axis == 2):
-            self.stage = self.controller.y
-        elif(self.procedure.axis == 3):
-            self.stage = self.controller.phi
-        start = self.procedure.get_start()
-        log.info(self.stage.right_limit)
-        log.info(start)
-        
-        log.info(self.procedure.start)
-        if(self.procedure.start < self.stage.left_limit):
-            
-            # Step 2: Create a QThread object
-            self.thread = QThread()
-            # Step 3: Create a worker object
-            self.worker = WorkerPositionError(self.procedure, self.controller)
-            # Step 4: Move worker to the thread
-            self.worker.moveToThread(self.thread)
-            # Step 5: Connect signals and slots
-            self.thread.started.connect(self.worker.run)
-            
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            self.worker.progress.connect(self.reportProgress)
 
-            self.thread.start()
-        
-        
-        
-    def reportProgress(self):
-        """Long-running task."""
-        log.info("reporting progress")
-        msg = QMessageBox(1, "Information", "trial", QMessageBox.Ok)
-        msg.setStyleSheet("QLabel{min-width: 100px;}")
-        msg.exec()
+    def showStageError(self, stage):
+        """Error Box that displays error in startin"""
+        mb = MyMessageBox()
+        mb.setText("The selected axis is not enabled")
+        info = ["Axis used: " + str(self.procedure.get_parameter("axis"))]
+        mb.setDetailedText( "\n".join(info))
+        mb.exec()
 
-        
+    def showErrorStartPosition(self, stage):
+        """Error Box that displays error in startin"""
+        mb = MyMessageBox()
+        mb.setText("Wrong start position value")
+        info = ["Axis used: " + str(self.procedure.get_parameter("axis")), "Left limit: " + str(stage.right_limit),
+                "Right limit: " + str(stage.left_limit)]
+        mb.setDetailedText( "\n".join(info))
+        mb.exec()
+
+
+    def showErrorEndPosition(self, stage):
+        mb = MyMessageBox()
+        mb.setText("Wrong end position values")
+        info = ["Axis used: " + str(self.procedure.get_parameter("axis")), "Left limit: " + str(stage.right_limit),
+                "Right limit: " + str(stage.left_limit)]
+        mb.setDetailedText("\n".join(info))
+        mb.exec()
 
 
     def browser_item_changed(self, item, column):
@@ -613,6 +602,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
         if not isinstance(self.inputs, InputsWidget):
             raise Exception("ManagedWindow can not make a Procedure"
                             " without a InputsWidget type")
+
         return self.inputs.get_procedure()
 
     def new_curve(self, wdg, results, color=None, **kwargs):
@@ -701,23 +691,19 @@ class ManagedWindowBase(QtGui.QMainWindow):
         self.abort_button.clicked.connect(self.resume)
         try:
             self.manager.abort()
-        except:  # noqa
+        except:
             log.error('Failed to abort experiment', exc_info=True)
             self.abort_button.setText("Abort")
             self.abort_button.clicked.disconnect()
             self.abort_button.clicked.connect(self.abort)
     
     def interrupt(self):
-        self.pause_button.setEnabled(False)
-        self.pause_button.setText("Continue")
-        self.pause_button.clicked.disconnect()
-        self.pause_button.setEnabled(True)
-        self.pause_button.clicked.connect(self.continuing)
         try:
-            self.manager.pause()
+            self.manager.abort()
+            self.clear_experiments()
         except:  # noqa
-            log.error('Failed to pause the experiment', exc_info=True)
-            self.pause_button.setText("Pause")
+            log.error('Failed to interrupt the experiment', exc_info=True)
+            self.pause_button.setText("Interrupt the procedure")
             self.pause_button.clicked.disconnect()
             self.pause_button.clicked.connect(self.interrupt)
         
@@ -749,8 +735,6 @@ class ManagedWindowBase(QtGui.QMainWindow):
     def running(self, experiment):
         self.browser_widget.clear_button.setEnabled(False)
 
-
-
     def abort_returned(self, experiment):
         if self.manager.experiments.has_next():
             self.abort_button.setText("Resume")
@@ -763,6 +747,7 @@ class ManagedWindowBase(QtGui.QMainWindow):
     def paused_returned(self, experiment):
         self.paused_button.setText("Continue")
         self.paused_button.setEnabled(True)
+        self.clear_experiments()
         
     def finished(self, experiment):
 

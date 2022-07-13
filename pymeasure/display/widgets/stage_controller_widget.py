@@ -103,14 +103,14 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         hbox1.setSpacing(10)
         hbox1.addWidget(QLabel("Current Position of Stage"))
         self.enabled1 = QPushButton("Enable motor", self)
-        self.enabled1.clicked.connect(lambda:(self.enableMotor(self.controller.x, self.enabled1)))
+        self.enabled1.clicked.connect(lambda:(self.enableMotor(self.controller.x, self.enabled1, self.currPosition2)))
         if (self.controller.x.enabled):
             self.enabled1.setText("Disable motor")
             self.currPosition1.setText(str(self.controller.x.position))
         else:
             self.enabled1.setText("Enable motor")
             self.currPosition1.setText("NO STAGE")
-        self.currPosition1.setText(str(self.controller.y.position))
+
         hbox1.addWidget(self.currPosition1)
         hbox1.addWidget(self.enabled1)
         
@@ -138,7 +138,7 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         hbox2.addWidget(QLabel("Current Position of Stage"))
         hbox2.addWidget(self.currPosition2)
         self.enabled2 = QPushButton("Enable motor", self)
-        self.enabled2.clicked.connect(lambda: self.enableMotor(self.controller.y, self.enabled2))
+        self.enabled2.clicked.connect(lambda: self.enableMotor(self.controller.y, self.enabled2, self.currPosition2))
         hbox2.addWidget(self.enabled2)
 
         if(self.controller.y.enabled):
@@ -146,7 +146,6 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
             self.currPosition2.setText(str(self.controller.y.position))
         else:
             self.enabled2.setText("Enable motor")
-            #self.enabled2.setEnabled(False)
             self.currPosition2.setText("NO STAGE")
 
 
@@ -177,7 +176,7 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
 
         self.enabled3 = QPushButton(self)
         hbox3.addWidget(self.enabled3)
-        self.enabled3.clicked.connect(lambda: self.enableMotor(self.controller.phi, self.enabled3))
+        self.enabled3.clicked.connect(lambda: self.enableMotor(self.controller.phi, self.enabled3, self.currPosition3))
         if (self.controller.phi.enabled):
             self.enabled3.setText("Disable motor")
             self.currPosition3.setText(str(self.controller.phi.position))
@@ -198,18 +197,19 @@ class StageControllerWidget(TabWidget, QtGui.QWidget):
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
 
-    def enableMotor(self, axis, button):
+    def enableMotor(self, axis, button, position):
         self.axis = axis
         self.enabled = button
+        self.position = position
         if axis != None:
             if (self.enabled.text() == "Enable motor"):
-                print("We are enabling")
                 self.controller.y.enable()
+                self.position.setText(str(axis.position))
                 self.enabled.setText("Disable motor")
             else:
-                print("we are disabling")
                 self.axis.disable()
                 self.enabled.setText("Enable motor")
+                self.position.setText("Motor disabled")
         else:
             return
 

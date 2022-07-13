@@ -76,13 +76,7 @@ class Worker(StoppableThread):
         global log
         log = logging.getLogger()
         log.setLevel(self.log_level)
-        
-        #these are the results of the previous experiment (previous in the loop)
-        
-    
-        
-        
-        self.average_data = {}
+
         # log.handlers = []  # Remove all other handlers
         # log.addHandler(TopicQueueHandler(self.monitor_queue))
         # log.addHandler(QueueHandler(self.log_queue))
@@ -204,9 +198,6 @@ class Worker(StoppableThread):
         except Exception:
             self.handle_error()
         finally:
-            log.info("FROM HERE WE SHOULD GET THE AVERAGE FOR EVERY RUN")
-            
-            
             self.shutdown()
             self.stop()
             

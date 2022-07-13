@@ -42,6 +42,23 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
+# Step 1: Create a worker class
+class WorkerPositionError(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self, procedure, controller):
+        super().__init__()
+        self.procedure = procedure
+        self.controller = controller
+
+    def run(self):
+        self.progress.emit(0)
+        print("HEEEEEEE")
+        sleep(10)
+        self.finished.emit()
+
+
 class RandomProcedure(Procedure):
     # initialize all the class attributes
     controller = ESP300("GPIB::1")
@@ -89,7 +106,6 @@ class RandomProcedure(Procedure):
         self.min_current = self.start
         self.scale = np.linspace(0, 50, self.data_points)
         i = 0
-        print("current iter inside procedure", self.current_iter)
         if (self.current_iter == 0):
             with open(self.data_filename, 'w', newline='') as csvfile:
                 dictwriter_object = DictWriter(csvfile, fieldnames=self.DATA_COLUMNS)
@@ -126,8 +142,7 @@ class RandomProcedure(Procedure):
                 data_measurement = {
                     'Voltage': self.lockin.x, "Stage_Position": self.stage.position, "Range": point,"Average": 0
                 }
-                print("average is ", df.at[row, "Average"])
-                print("current iter", self.current_iter)
+
                 sum_voltage = (self.current_iter * df.at[row, "Average"] + data_measurement.get("Voltage")) / (
                         self.current_iter + 1)
                 data_measurement["Average"] = sum_voltage
@@ -148,8 +163,6 @@ class RandomProcedure(Procedure):
                     df.to_csv(self.data_filename, index=False)
                     i = i +1
 
-
-
     def shutdown(self):
         log.info("Finished measuring Random Procedure")
 
@@ -158,13 +171,10 @@ class RandomProcedure(Procedure):
 
     def get_end(self):
         return self.end
+    def set_waitingTime(self, waitingTime):
+        self.waitingTime = waitingTime
 
 
-
-
-
-
-import csv
 import pandas as pd
 
 
@@ -186,37 +196,122 @@ class MainWindow(ManagedWindow):
 
         self.setWindowTitle('Lock-in Amplifier')
         self.manager.abort_returned.connect(self.changeIteration)
+        self.manager.finished.connect(self.finishedIteration)
+        self.manager.finished.connect(self.checkFinishedProcedure)
         self.iterations = None
         self.should_run = True
         self.curr = 0
+        self.stage = None
+
+    def finishedIteration(self):
+        self.curr = self.curr + 1
+
+    def checkFinishedProcedure(self):
+        if(self.curr == self.procedure.get_parameter("iterations")):
+            self.curr = 0
+
 
     def changeIteration(self):
-        self.curr = self.curr - 1
+        if (self.should_run):
+            filename = tempfile.mktemp()
+            procedure = self.make_procedure()
+            procedure.set_current_iteration(procedure.get_parameter("iterations") - 1)
+            if (procedure.saving):
+                path = procedure.get_parameter("path")
+                filename_loc = procedure.get_parameter("filename")
+                self.data_filename = path + "/" + filename_loc + ".csv"
+                #we are going to delete it
+                temporaryfile = path + "/" + "added.csv"
+                results = Results(procedure, (filename, temporaryfile))
+            else:
+                results = Results(procedure, filename)
+            experiment = self.new_experiment(results, procedure.get_parameter("iterations") - 1)
+            self.manager.queue(experiment)
+
 
 
     def queue(self):
-        procedure1 = self.make_procedure()
-        self.iterations = procedure1.get_parameter("iterations")
-
-        while (self.curr < self.iterations):
+        self.procedure = self.make_procedure()
+        self.iterations = self.procedure.get_parameter("iterations")
+        curr = 0
+        self.setStage()
+        self.checkPositionParameter()
+        self.moveStage()
+        while (curr < self.iterations):
             if (self.should_run):
                 filename = tempfile.mktemp()
                 procedure = self.make_procedure()
-
-                procedure.set_current_iteration(self.curr)
+                procedure.set_current_iteration(curr)
                 if (procedure.saving):
                     path = procedure.get_parameter("path")
                     filename_loc = procedure.get_parameter("filename")
                     self.data_filename = path + "/" + filename_loc + ".csv"
-                    # results = Results(procedure, (filename))
                     temporaryfile = path + "/" + "averaging.csv"
                     results = Results(procedure, (filename, temporaryfile))
-
                 else:
                     results = Results(procedure, filename)
-                experiment = self.new_experiment(results, self.curr)
+                experiment = self.new_experiment(results, curr)
                 self.manager.queue(experiment)
-                self.curr = self.curr + 1
+                curr = curr + 1
+
+    def setStage(self):
+        self.axis = self.procedure.axis
+        if (self.axis == 1):
+            self.stage = self.controller.x
+        elif (self.axis == 2):
+            self.stage = self.controller.y
+        elif (self.axis == 3):
+            self.stage = self.controller.phi
+
+
+
+    # we need to check that:
+    # 1)position parameters are within the limit of the state
+    # 2)the stage we are using is enabled/there is a stage
+    # 3)we need to move the stage we are using to the given starting position
+    def checkPositionParameter(self):
+        if self.stage is None:
+            self.thread = QThread()
+            self.worker = WorkerPositionError(self.procedure, self.controller)
+            self.worker.moveToThread(self.thread)
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(lambda: self.showStageError(self.stage))
+            self.thread.start()
+
+
+        elif (self.procedure.start < self.stage.left_limit or self.procedure.start > self.procedure.end or self.procedure.start > self.stage.right_limit):
+            self.thread = QThread()
+            self.worker = WorkerPositionError(self.procedure, self.controller)
+            self.worker.moveToThread(self.thread)
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(lambda: self.showErrorStartPosition(self.stage))
+
+            self.thread.start()
+
+        elif (self.procedure.end < self.stage.left_limit or self.procedure.end > self.stage.right_limit):
+            self.thread = QThread()
+            self.worker = WorkerPositionError(self.procedure, self.controller)
+            self.worker.moveToThread(self.thread)
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.thread.start()
+            self.worker.progress.connect(lambda: self.showErrorEndPosition(self.stage))
+
+
+    def moveStage(self):
+        self.axis = self.procedure.axis
+        self.stage.define_position(self.procedure.get_parameter("start"))
 
     def get_start(self):
         return self.start

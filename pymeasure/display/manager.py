@@ -25,7 +25,7 @@
 import logging
 
 from os.path import basename
-
+from time import sleep
 from .Qt import QtCore
 from .listeners import Monitor
 from ..experiment import Procedure
@@ -267,7 +267,7 @@ class Manager(QtCore.QObject):
                 self._worker.start()
 
     def continuing(self):
-        """ Resumes the process that was started and which is still in the queue.
+        """
         """
         self._clean_up()
 
@@ -300,7 +300,10 @@ class Manager(QtCore.QObject):
         self._clean_up()
         self.abort_returned.emit(experiment)
 
+
+
     def _changeIteration(self):
+        self.experiments.remove(self._running_experiment)
         for exp in self.experiments:
             curr = exp.procedure.current_iter - 1
             exp.procedure.set_current_iteration(curr)
@@ -320,6 +323,8 @@ class Manager(QtCore.QObject):
             if curve:
                 curve.update_data()
         self.finished.emit(experiment)
+        #add the waiting time between each experiment
+        sleep(experiment.procedure.get_parameter("waitingTime"))
         if self._is_continuous:  # Continue running procedures
             self.next()
 
@@ -342,13 +347,13 @@ class Manager(QtCore.QObject):
         else:
             self._start_on_add = False
             self._is_continuous = False
-
+            #we remove the graph of the aborted procedure
+            self.remove_graph(self._running_experiment)
             self._worker.stop()
-
             self.aborted.emit(self._running_experiment)
    
     def pause(self):
-        """ Pauses the currently running Experiment, but raises an exception if
+        """ Interrupts the whole experiment and deletes everything the currently running Experiment, but raises an exception if
         there is no running experiment
         """
         if not self.is_running():
@@ -359,5 +364,6 @@ class Manager(QtCore.QObject):
             self._is_continuous = False
 
             self._worker.interrupt()
-
+            for experiment in self.experiments:
+                self.remove(experiment)
             self.paused.emit(self._running_experiment)

@@ -113,14 +113,14 @@ class InputsWidget(QtGui.QWidget):
                     labelPath.setText("%s:" % parameters[name].name)
                     filepathGroup.addWidget(labelPath)
                     filepathGroup.addWidget(getattr(self, name))
-                    random = getattr(self, name)
+                    self.pathName = getattr(self, name)
                     self.labels[name] = labelPath
                     
                     widgetPath = QtGui.QWidget()
                     browse = QtGui.QPushButton()
                     browse.setObjectName("Browse Directory")
                     browse.setText("Browse Directory")
-                    browse.clicked.connect(lambda: self._button_click(random, 1))
+                    browse.clicked.connect(lambda: self._button_click(self.pathName, 1))
                     filepathGroup.addWidget(browse)
                     widgetPath.setLayout(filepathGroup)
                     vbox.addWidget(widgetPath)
@@ -131,34 +131,36 @@ class InputsWidget(QtGui.QWidget):
                     labelFileName = QtGui.QLabel(self)
                     labelFileName.setText("%s:" % parameters[name].name)
                     filenameGroup.addWidget(labelFileName)
-                    fileNameBox = getattr(self, name)
+                    self.fileNameBox = getattr(self, name)
                     filenameGroup.addWidget(getattr(self,name))
                     self.labels[name] = labelFileName
                     
                     enter = QtGui.QPushButton()
                     enter.setObjectName("Enter")
                     enter.setText("Enter")
-                    enter.clicked.connect(lambda: self._button_click(fileNameBox, 0))
+                    enter.clicked.connect(lambda: self._button_click(self.fileNameBox, 0))
                     filenameGroup.addWidget(enter)
                     widgetFileName = QtGui.QWidget()
                     widgetFileName.setLayout(filenameGroup)
                     vbox.addWidget(widgetFileName)
                 elif name == "waitingTime":
+                    waiting = getattr(self, name)
                     self.waitingCheckBox = QtGui.QCheckBox(self)
-                    if (self._procedure.get_parameter("waiting") == False):
-                        self.waitingCheckBox.setChecked(False)
-                    else:
-                        self.waitingCheckBox.setChecked(True)
-                    self.waitingCheckBox.clicked.connect(self.waitingOptionSetter)
                     waitingGroup = QtGui.QHBoxLayout()
                     waitingLabel = QtGui.QLabel(self)
                     self.waitingBox = QtGui.QSpinBox()
-
                     self.waitingBox.setValue(0)
+                    if (self._procedure.get_parameter("waiting") == False):
+                        self.waitingCheckBox.setChecked(False)
+                        self.waitingBox.setEnabled(False)
+                    else:
+                        self.waitingCheckBox.setChecked(True)
+                        self.waitingBox.setEnabled(True)
+                    self.waitingCheckBox.clicked.connect(self.waitingOptionSetter)
 
                     waitingLabel.setText("%s:" % parameters[name].name)
                     waitingGroup.addWidget(waitingLabel)
-                    self.waitingBox.valueChanged.connect(self.setWaitingTime)
+                    self.waitingBox.valueChanged.connect(lambda: self.setWaitingTime(waiting))
                     waitingGroup.addWidget(self.waitingBox)
                     waitingGroup.addWidget(self.waitingCheckBox)
                     self.labels[name] = waitingLabel
@@ -183,8 +185,9 @@ class InputsWidget(QtGui.QWidget):
         elif(self.waitingCheckBox.checkState() == 0):
             self._procedure.set_parameter("waiting", False)
             self.waitingBox.setEnabled(False)
-        print(self._procedure.get_parameter("waiting"))
-    def setWaitingTime(self):
+
+    def setWaitingTime(self, waiting):
+        waiting.setValue(int(self.waitingBox.text()))
         self._procedure.set_parameter("waitingTime", int(self.waitingBox.text()))
         
     def show_info_messagebox():
@@ -205,20 +208,14 @@ class InputsWidget(QtGui.QWidget):
 
 
     def _button_click(self, textBox, option):
-        filename = self._inputs[0]
-        path = self._inputs[1] 
         if option == 0:
-            self._procedure.set_parameter("filename", textBox.text())
+            return
         if option == 1:
             root = Tk() # pointing root to Tk() to use it as Tk() in program.
             root.withdraw() # Hides small tkinter window.
             root.attributes('-topmost', True) # Opened windows will be active. above all windows despite of selection.
             pathDirectory = filedialog.askdirectory() # Returns opened path as str
             textBox.setValue(pathDirectory)
-            self._procedure.set_parameter("path", textBox.text())
-        if option == 2:
-            self._procedure.set_parameter("axis", textBox.currentText())
-            log.info(self._procedure.axis)
         
     def _setup_visibility_groups(self):
         groups = {}
@@ -290,10 +287,19 @@ class InputsWidget(QtGui.QWidget):
         """ Returns the current procedure """
         self._procedure = self._procedure_class()
         parameter_values = {}
+
         for name in self._inputs:
             element = getattr(self, name)
             parameter_values[name] = element.parameter.value
+        parameter_values["waitingTime"] = int(self.waitingBox.text())
+        parameter_values["path"] = self.pathName.text()
         self._procedure.set_parameters(parameter_values)
+
+        print(self._procedure.get_parameter("axis"))
+        print(self._procedure.get_parameter("waitingTime"))
+        print(self._procedure.get_parameter("path"))
+        print(self._procedure.get_parameter("filename"))
+
         return self._procedure
 
 
